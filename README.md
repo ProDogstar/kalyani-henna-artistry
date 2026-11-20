@@ -2,14 +2,14 @@
 
 Static site (index.html) + Vercel serverless functions (api/) + Supabase (database, login, photo storage) + Razorpay (payments).
 
-## 1. Change the client's details (no code knowledge needed)
+## 1. Change the client's details 
 Open `site.config.js`. Every line has a comment. Change name, phone, WhatsApp number, email, address, hours,
 social links, bio, FAQ, time slots. Empty values are hidden or shown as "[to be added]".
 Prices: open `api/_pricing.js` and set the advance in rupees per service (`null` = quote request, no payment).
 Logo/photos: replace files in `images/` using the SAME file names (see `index.html` for which is which).
 The "Made by ProDG" footer link is in `index.html` (search `prodgcorp.in`).
 
-## 2. Set up Supabase (free tier is fine)
+## 2. Set up Supabase 
 1. supabase.com > New project. Copy Project URL, anon key, service_role key (Project Settings > API).
 2. SQL Editor > paste `supabase/schema.sql` > Run.
 3. Authentication > Users > Add user (the owner's email + password).
