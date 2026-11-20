@@ -1,0 +1,32 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Admin</title>
+<style>body{font:15px/1.5 system-ui,sans-serif;margin:0;background:#f6f6f6;color:#111}main{max-width:1000px;margin:0 auto;padding:20px}input,select,button{font:inherit;padding:9px 12px;border:1px solid #ccc;border-radius:10px;background:#fff}button{cursor:pointer;background:#111;color:#fff;border-color:#111}.x{background:#fff;color:#111}table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;margin-top:14px}th,td{padding:9px 10px;border-bottom:1px solid #eee;text-align:left;vertical-align:top;font-size:.9rem}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:16px}.g img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px}</style></head><body><main>
+<h1>Admin</h1><p id="msg" role="status"></p>
+<div id="login"><form id="lf"><input id="em" type="email" placeholder="Email" required> <input id="pw" type="password" placeholder="Password" required> <button>Sign in</button></form></div>
+<div id="app" hidden><button data-t="b">Bookings</button> <button data-t="p">Photos</button> <button class="x" id="out">Sign out</button><div id="v"></div></div></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script src="site.config.js"></script>
+<script>
+/* Admin panel. Security comes from the DATABASE rules (supabase/schema.sql), not from hiding this page:
+   a non-admin who signs in can read nothing. Photos: upload images about 1600px wide or less. */
+var S=window.SITE,sb=supabase.createClient(S.supabaseUrl,S.supabaseAnonKey),$=function(i){return document.getElementById(i)};
+function say(t){$('msg').textContent=t||''}
+async function gate(){var u=(await sb.auth.getUser()).data.user;if(!u){$('login').hidden=false;$('app').hidden=true;return}
+ var a=await sb.from('admins').select('user_id').eq('user_id',u.id).maybeSingle();
+ if(!a.data){await sb.auth.signOut();say('This account is not an admin.');$('login').hidden=false;$('app').hidden=true;return}
+ say();$('login').hidden=true;$('app').hidden=false;bookings()}
+$('lf').onsubmit=async function(e){e.preventDefault();var r=await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});r.error?say(r.error.message):gate()};
+$('out').onclick=async function(){await sb.auth.signOut();location.reload()};
+document.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){b.dataset.t=='b'?bookings():photos()}});
+async function bookings(){var r=await sb.from('bookings').select('*').order('event_date'),v=$('v');v.textContent='';if(r.error)return say(r.error.message);
+ var t=document.createElement('table');t.innerHTML='<tr><th>Ref</th><th>Customer</th><th>Event</th><th>Status</th><th>Action</th></tr>';
+ r.data.forEach(function(b){var tr=t.insertRow();[b.reference,b.name+' · '+b.phone,b.service+' · '+b.event_date+' '+(b.slot||'')+' · '+(b.venue||'')+(b.notes?' · '+b.notes:''),b.status].forEach(function(x){tr.insertCell().textContent=x});
+  var c=tr.insertCell();['completed','cancelled'].forEach(function(s){var k=document.createElement('button');k.textContent=s;k.onclick=async function(){var u=await sb.from('bookings').update({status:s}).eq('id',b.id);u.error?say(u.error.message):bookings()};c.append(k,' ')})});
+ v.appendChild(t)}
+async function photos(){var v=$('v');v.textContent='';var f=document.createElement('form');f.style.marginTop='14px';f.innerHTML='<input type="file" accept="image/*" required> <input name="t" placeholder="Title"> <input name="c" placeholder="Category (e.g. Bridal)"> <button>Upload</button>';
+ f.onsubmit=async function(e){e.preventDefault();var file=f.querySelector('input[type=file]').files[0],p=Date.now()+'-'+file.name.replace(/[^\w.-]/g,'_');
+  var up=await sb.storage.from('portfolio').upload(p,file);if(up.error)return say(up.error.message);
+  var i=await sb.from('portfolio').insert({path:p,title:f.t.value,category:f.c.value});i.error?say(i.error.message):photos()};
+ v.appendChild(f);var r=await sb.from('portfolio').select('*').order('created_at',{ascending:false}),g=document.createElement('div');g.className='g';
+ (r.data||[]).forEach(function(p){var d=document.createElement('div'),im=document.createElement('img');im.src=S.supabaseUrl+'/storage/v1/object/public/portfolio/'+encodeURIComponent(p.path);im.alt=p.title||'';
+  var x=document.createElement('button');x.textContent='Delete';x.onclick=async function(){await sb.storage.from('portfolio').remove([p.path]);await sb.from('portfolio').delete().eq('id',p.id);photos()};d.append(im,x);g.appendChild(d)});v.appendChild(g)}
+gate();
+</script></body></html>
